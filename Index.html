@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Daily Wastage Tracker - Complete System</title>
+  <!-- React -->
+  <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- jsPDF & html2canvas -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- Chart.js for analytics -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <!-- Supabase -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script>
+    // ── PASTE YOUR SUPABASE CREDENTIALS HERE ─────────────────────
+    const SUPABASE_URL  = 'https://whlisrfhbtqcfbuiqvyz.supabase.co/rest/v1/';
+    const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6IndobGlzcmZoYnRxY2ZidWlxdnl6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzMDEwNTksImV4cCI6MjA5Mzg3NzA1OX0.heWB_X4eA8TM8UPhf2-U5SJ4JBD99ErTXExPHQ6ImDU';
+    // ─────────────────────────────────────────────────────────────
+    window.__sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON);
+  </script>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(to bottom right, #e0f2fe, #dbeafe);
+      padding: 12px;
+      color: #1e293b;
+      line-height: 1.5;
+    }
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+    .card {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+      padding: 16px;
+      margin-bottom: 16px;
+      overflow: hidden;
+    }
+    h1 {
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 16px;
+      color: #0f172a;
+      text-align: center;
+    }
+    @media (min-width: 768px) {
+      h1 {
+        font-size: 26px;
+        text-align: left;
+      }
+    }
+    h2 {
+      font-size: 18px;
+      font-weight: 600;
+      margin: 16px 0 12px;
+      color: #1e293b;
+    }
+    h3 {
+      font-size: 16px;
+      font-weight: 600;
+      margin: 12px 0 8px;
+      color: #334155;
+    }
+    label {
+      display: block;
+      font-weight: 600;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      font-size: 15px;
+    }
+    input[readonly] {
+      background-color: #f8fafc;
+      font-weight: 600;
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 12px 0;
+      font-size: 14px;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 10px;
+      text-align: center;
+    }
+    thead {
+      background-color: #f8fafc;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      white-space: nowrap;
+      min-width: 60px;
+      transition: all 0.2s;
+    }
+    .btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .btn-save { background: #16a34a; color: white; }
+    .btn-export { background: #2563eb; color: white; }
+    .btn-pdf { background: #7e22ce; color: white; }
+    .btn-clear { background: #dc2626; color: white; }
+    .btn-analytics { background: #0891b2; color: white; }
+    .btn-add { 
+      background: #16a34a; 
+      color: white; 
+      font-size: 13px; 
+      padding: 6px 10px; 
+      margin-top: 8px;
+    }
+    .btn-remove {
+      background: none;
+      border: none;
+      color: #ef4444;
+      cursor: pointer;
+      padding: 4px;
+      font-size: 18px;
+      transition: transform 0.2s;
+    }
+    .btn-remove:hover {
+      transform: scale(1.1);
+    }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+      justify-content: center;
+    }
+    @media (min-width: 768px) {
+      .header-actions {
+        justify-content: flex-end;
+        margin-top: 0;
+      }
+    }
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 16px;
+      margin-top: 16px;
+    }
+    .table-container {
+      overflow-x: auto;
+      margin: 12px 0;
+    }
+    .section {
+      margin-bottom: 24px;
+    }
+
+    /* Tab Styles */
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 20px;
+      border-bottom: 2px solid #e2e8f0;
+      flex-wrap: wrap;
+    }
+    .tab {
+      padding: 12px 24px;
+      background: none;
+      border: none;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      color: #64748b;
+      transition: all 0.3s;
+      position: relative;
+    }
+    .tab:hover {
+      color: #3b82f6;
+    }
+    .tab.active {
+      color: #3b82f6;
+    }
+    .tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: #3b82f6;
+    }
+    .tab-content {
+      display: none;
+      animation: fadeIn 0.5s;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Calendar Styles */
+    .calendar-grid {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+      gap: 8px;
+      margin: 20px 0;
+    }
+    .calendar-day {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px 8px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .calendar-day:hover {
+      background: #dbeafe;
+      transform: translateY(-2px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    .calendar-day.has-data {
+      background: #dcfce7;
+      border-color: #16a34a;
+    }
+    .calendar-day.has-data::after {
+      content: '✓';
+      position: absolute;
+      top: -5px;
+      right: -5px;
+      background: #16a34a;
+      color: white;
+      border-radius: 50%;
+      width: 18px;
+      height: 18px;
+      font-size: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .calendar-day.selected {
+      background: #3b82f6;
+      color: white;
+      border-color: #3b82f6;
+    }
+    .calendar-day .day-number {
+      font-size: 20px;
+      font-weight: bold;
+    }
+    .calendar-day .day-date {
+      font-size: 10px;
+      margin-top: 4px;
+    }
+    .calendar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .month-nav {
+      display: flex;
+      gap: 12px;
+    }
+    .month-nav button {
+      padding: 8px 16px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    /* Stats Cards */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 20px;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      padding: 16px;
+      border-radius: 12px;
+      text-align: center;
+    }
+    .stat-card h3 {
+      font-size: 14px;
+      margin-bottom: 8px;
+      opacity: 0.9;
+      color: white;
+    }
+    .stat-card .value {
+      font-size: 28px;
+      font-weight: bold;
+    }
+
+    /* Modal for Analytics */
+    .modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      z-index: 1000;
+      overflow-y: auto;
+    }
+    .modal-content {
+      background: white;
+      margin: 50px auto;
+      padding: 20px;
+      width: 90%;
+      max-width: 800px;
+      border-radius: 12px;
+      position: relative;
+    }
+    .modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .close {
+      font-size: 28px;
+      cursor: pointer;
+      color: #666;
+    }
+    canvas {
+      max-height: 400px;
+      margin: 20px 0;
+    }
+
+    /* Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: #333;
+      color: white;
+      padding: 12px 20px;
+      border-radius: 8px;
+      z-index: 2000;
+      animation: slideIn 0.3s ease;
+    }
+    @keyframes slideIn {
+      from {
+        transform: translateX(100%);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0);
+        opacity: 1;
+      }
+    }
+
+    /* Calculator Panel */
+    #calculator-panel {
+      display: none;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 12px;
+      background-color: #f8fafc;
+      margin: 12px 0;
+    }
+    .calc-display {
+      background: white;
+      padding: 10px;
+      border-radius: 6px;
+      text-align: right;
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 10px;
+      min-height: 36px;
+    }
+    .calc-buttons {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+    }
+    .calc-btn {
+      padding: 12px 0;
+      font-size: 18px;
+      font-weight: bold;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      background: #e2e8f0;
+      color: #1e293b;
+      transition: background 0.2s;
+    }
+    .calc-btn:hover {
+      background: #cbd5e1;
+    }
+    .calc-btn.equals {
+      background: #16a34a;
+      color: white;
+    }
+    .calc-btn.clear {
+      background: #dc2626;
+      color: white;
+    }
+
+    @media (max-width: 480px) {
+      .btn {
+        padding: 8px 8px;
+        font-size: 13px;
+      }
+      .calc-btn {
+        padding: 14px 0;
+        font-size: 20px;
+      }
+      input, select {
+        padding: 12px;
+        font-size: 16px;
+      }
+      table {
+        font-size: 13px;
+      }
+      th, td {
+        padding: 8px;
+      }
+      .calendar-day .day-number {
+        font-size: 14px;
+      }
+    }
+
+    @media print {
+      .header-actions, .btn-add, .btn-remove, #calculator-panel, .stats-grid, .btn-analytics, .tabs {
+        display: none !important;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="root"></div>
+
+  <script>
+    const { jsPDF } = window.jspdf;
+    const { useState, useEffect, useRef, useMemo } = React;
+
+    // SVG Icons
+    const SaveIcon = () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('path', { d: 'M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z' }),
+      React.createElement('polyline', { points: '17 21 17 13 7 13 7 21' }),
+      React.createElement('polyline', { points: '7 3 7 8 15 8' })
+    );
+    const DownloadIcon = () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('path', { d: 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4' }),
+      React.createElement('polyline', { points: '7 10 12 15 17 10' }),
+      React.createElement('line', { x1: 12, y1: 15, x2: 12, y2: 3 })
+    );
+    const FileTextIcon = () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('path', { d: 'M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z' }),
+      React.createElement('polyline', { points: '14 2 14 8 20 8' }),
+      React.createElement('line', { x1: 16, y1: 13, x2: 8, y2: 13 }),
+      React.createElement('line', { x1: 16, y1: 17, x2: 8, y2: 17 }),
+      React.createElement('line', { x1: 10, y1: 9, x2: 8, y2: 9 })
+    );
+    const TrashIcon = () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('polyline', { points: '3 6 5 6 21 6' }),
+      React.createElement('path', { d: 'M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 1 2 2v2' })
+    );
+    const PlusIcon = () => React.createElement('svg', { width: 14, height: 14, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('line', { x1: 12, y1: 5, x2: 12, y2: 19 }),
+      React.createElement('line', { x1: 5, y1: 12, x2: 19, y2: 12 })
+    );
+    const XIcon = () => React.createElement('svg', { width: 18, height: 18, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('line', { x1: 18, y1: 6, x2: 6, y2: 18 }),
+      React.createElement('line', { x1: 6, y1: 6, x2: 18, y2: 18 })
+    );
+    const BarChartIcon = () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('line', { x1: 18, y1: 20, x2: 18, y2: 10 }),
+      React.createElement('line', { x1: 12, y1: 20, x2: 12, y2: 4 }),
+      React.createElement('line', { x1: 6, y1: 20, x2: 6, y2: 14 })
+    );
+    const CalendarIcon = () => React.createElement('svg', { width: 16, height: 16, viewBox: '0 0 24 24', fill: 'none', stroke: 'currentColor', strokeWidth: 2 },
+      React.createElement('rect', { x: 3, y: 4, width: 18, height: 18, rx: 2, ry: 2 }),
+      React.createElement('line', { x1: 16, y1: 2, x2: 16, y2: 6 }),
+      React.createElement('line', { x1: 8, y1: 2, x2: 8, y2: 6 }),
+      React.createElement('line', { x1: 3, y1: 10, x2: 21, y2: 10 })
+    );
+
+    const safeParseFloat = (val) => {
+      const num = parseFloat(val);
+      return isNaN(num) || num < 0 ? 0 : num;
+    };
+
+    const Toast = ({ message, onClose }) => {
+      useEffect(() => {
+        const timer = setTimeout(onClose, 3000);
+        return () => clearTimeout(timer);
+      }, [onClose]);
+      return React.createElement('div', { className: 'toast' }, message);
+    };
+
+    const DailyWastageTracker = () => {
+      const plateTypeOptions = ['NS 40 (+)', 'NS 40 (-)', 'N 50 (+)', 'N 50 (-)', 'N 100 (+)', 'N 100 (-)'];
+      const [activeTab, setActiveTab] = useState('entry');
+      const toLocalDateStr = (date) => {
+        const y = date.getFullYear();
+        const m = String(date.getMonth() + 1).padStart(2, '0');
+        const d = String(date.getDate()).padStart(2, '0');
+        return `${y}-${m}-${d}`;
+      };
+      const [selectedDate, setSelectedDate] = useState(toLocalDateStr(new Date()));
+      const [currentMonth, setCurrentMonth] = useState(new Date());
+      const [showAnalytics, setShowAnalytics] = useState(false);
+      const [toast, setToast] = useState(null);
+      const [allData, setAllData] = useState({});
+      const chartRef = useRef(null);
+      const chartInstance = useRef(null);
+      
+      const [data, setData] = useState({
+        pbInput: { 'GC-01': '', 'GC-02': '', 'GC-03': '', 'GC-04': '', 'Burning': '' },
+        dross: { 'GC-01': '', 'GC-02': '', 'GC-03': '', 'GC-04': '', 'Burning': '' },
+        cuttingArea: { plateTypes: [''], GD: [''], PD: [''], CD: [''], BD: [''], Bud: [''] },
+        cuttingWeight: '',
+        burningArea: { plateTypes: [''], GD: [''], PD: [''], CD: [''], BD: [''], Bud: [''] },
+        burningWeight: '',
+        cuttingBrushingDust: '',
+        pastingDust: '',
+        pastingRemaining: '',
+        pastingPlateDamage: '',
+        oxideMillDross: ''
+      });
+
+      const [calcDisplay, setCalcDisplay] = useState('0');
+      const [calcOperand1, setCalcOperand1] = useState(null);
+      const [calcOperator, setCalcOperator] = useState(null);
+      const [calcWaitingForOperand, setCalcWaitingForOperand] = useState(false);
+
+      // ── Auth state ───────────────────────────────────────────────
+      const [user, setUser] = useState(null);
+      const [authReady, setAuthReady] = useState(false);
+      const [loginEmail, setLoginEmail] = useState('');
+      const [loginPassword, setLoginPassword] = useState('');
+      const [loginError, setLoginError] = useState('');
+      const [loginLoading, setLoginLoading] = useState(false);
+      const [dbLoading, setDbLoading] = useState(false);
+
+      const emptyData = () => ({
+        pbInput: { 'GC-01': '', 'GC-02': '', 'GC-03': '', 'GC-04': '', 'Burning': '' },
+        dross: { 'GC-01': '', 'GC-02': '', 'GC-03': '', 'GC-04': '', 'Burning': '' },
+        cuttingArea: { plateTypes: [''], GD: [''], PD: [''], CD: [''], BD: [''], Bud: [''] },
+        cuttingWeight: '',
+        burningArea: { plateTypes: [''], GD: [''], PD: [''], CD: [''], BD: [''], Bud: [''] },
+        burningWeight: '',
+        cuttingBrushingDust: '',
+        pastingDust: '',
+        pastingRemaining: '',
+        pastingPlateDamage: '',
+        oxideMillDross: ''
+      });
+
+      // Listen to Supabase auth state
+      useEffect(() => {
+        const sb = window.__sb;
+        if (!sb) { setAuthReady(true); return; }
+        sb.auth.getSession().then(({ data: { session } }) => {
+          setUser(session?.user ?? null);
+          setAuthReady(true);
+        });
+        const { data: { subscription } } = sb.auth.onAuthStateChange((_event, session) => {
+          setUser(session?.user ?? null);
+        });
+        return () => subscription.unsubscribe();
+      }, []);
+
+      // Load ALL data from Supabase when user logs in
+      useEffect(() => {
+        if (!user) { setAllData({}); return; }
+        const sb = window.__sb;
+        if (!sb) return;
+        setDbLoading(true);
+        sb.from('wastage').select('*')
+          .then(({ data, error }) => {
+            if (error) { showToast('⚠️ Failed to load data'); return; }
+            const loaded = {};
+            (data || []).forEach(row => {
+              loaded[row.date] = row.payload;
+            });
+            setAllData(loaded);
+          })
+          .finally(() => setDbLoading(false));
+      }, [user]);
+
+      // Load data for selected date
+      useEffect(() => {
+        const saved = allData[selectedDate];
+        if (saved) {
+          setData({ ...emptyData(), ...saved,
+            cuttingArea: saved.cuttingArea || emptyData().cuttingArea,
+            burningArea: saved.burningArea || emptyData().burningArea
+          });
+        } else {
+          setData(emptyData());
+        }
+      }, [selectedDate, allData]);
+
+      const handleLogin = async () => {
+        const sb = window.__sb;
+        if (!sb) { setLoginError('Supabase not configured yet.'); return; }
+        setLoginLoading(true); setLoginError('');
+        const { error } = await sb.auth.signInWithPassword({ email: loginEmail, password: loginPassword });
+        if (error) setLoginError('❌ Wrong email or password.');
+        setLoginLoading(false);
+      };
+
+      const handleLogout = async () => {
+        const sb = window.__sb;
+        if (sb) await sb.auth.signOut();
+        setAllData({});
+      };
+
+      const saveData = async () => {
+        const sb = window.__sb;
+        if (!sb || !user) { showToast('❌ Not logged in'); return; }
+        const { error } = await sb.from('wastage').upsert({ date: selectedDate, payload: data }, { onConflict: 'date' });
+        if (error) { showToast('❌ Save failed: ' + error.message); return; }
+        setAllData(prev => ({ ...prev, [selectedDate]: data }));
+        showToast('✅ Saved to cloud!');
+      };
+
+      const clearData = async () => {
+        if (!confirm('⚠️ Clear all data for this date? This cannot be undone.')) return;
+        const sb = window.__sb;
+        if (!sb || !user) { showToast('❌ Not logged in'); return; }
+        const { error } = await sb.from('wastage').delete().eq('date', selectedDate);
+        if (error) { showToast('❌ Clear failed: ' + error.message); return; }
+        setAllData(prev => { const n = { ...prev }; delete n[selectedDate]; return n; });
+        setData(emptyData());
+        showToast('🗑️ Data cleared from cloud');
+      };
+
+      // Generate calendar days
+      const getDaysInMonth = (date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth();
+        const firstDay = new Date(year, month, 1);
+        const lastDay = new Date(year, month + 1, 0);
+        const days = [];
+        
+        // Add previous month days
+        const firstDayOfWeek = firstDay.getDay();
+        const prevMonthLastDay = new Date(year, month, 0).getDate();
+        for (let i = firstDayOfWeek - 1; i >= 0; i--) {
+          days.push({
+            date: new Date(year, month - 1, prevMonthLastDay - i),
+            isCurrentMonth: false
+          });
+        }
+        
+        // Add current month days
+        for (let i = 1; i <= lastDay.getDate(); i++) {
+          days.push({
+            date: new Date(year, month, i),
+            isCurrentMonth: true
+          });
+        }
+        
+        // Add next month days
+        const remainingDays = 42 - days.length;
+        for (let i = 1; i <= remainingDays; i++) {
+          days.push({
+            date: new Date(year, month + 1, i),
+            isCurrentMonth: false
+          });
+        }
+        
+        return days;
+      };
+
+      const changeMonth = (delta) => {
+        setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + delta, 1));
+      };
+
+      const selectDateFromCalendar = (date) => {
+        const dateStr = toLocalDateStr(date);
+        setSelectedDate(dateStr);
+        setActiveTab('entry');
+        showToast(`📅 Switched to ${dateStr}`);
+      };
+
+      // Get all dates with data
+      const datesWithData = useMemo(() => new Set(Object.keys(allData)), [allData]);
+
+      const handleCalcButtonPress = (value) => {
+        if (value === 'C') {
+          setCalcDisplay('0');
+          setCalcOperand1(null);
+          setCalcOperator(null);
+          setCalcWaitingForOperand(false);
+          return;
+        }
+        if (value === '=') {
+          if (calcOperand1 !== null && calcOperator !== null) {
+            const operand2 = parseFloat(calcDisplay);
+            let result = 0;
+            switch (calcOperator) {
+              case '+': result = calcOperand1 + operand2; break;
+              case '-': result = calcOperand1 - operand2; break;
+              case '*': result = calcOperand1 * operand2; break;
+              case '/': result = calcOperand1 / operand2; break;
+              default: return;
+            }
+            setCalcDisplay(String(result));
+            setCalcOperand1(null);
+            setCalcOperator(null);
+            setCalcWaitingForOperand(true);
+          }
+          return;
+        }
+        if (['+', '-', '*', '/'].includes(value)) {
+          if (calcOperand1 === null) {
+            setCalcOperand1(parseFloat(calcDisplay));
+          } else if (calcOperator) {
+            const operand2 = parseFloat(calcDisplay);
+            let result = 0;
+            switch (calcOperator) {
+              case '+': result = calcOperand1 + operand2; break;
+              case '-': result = calcOperand1 - operand2; break;
+              case '*': result = calcOperand1 * operand2; break;
+              case '/': result = calcOperand1 / operand2; break;
+            }
+            setCalcDisplay(String(result));
+            setCalcOperand1(result);
+          }
+          setCalcOperator(value);
+          setCalcWaitingForOperand(true);
+          return;
+        }
+        if (calcWaitingForOperand) {
+          setCalcDisplay(value);
+          setCalcWaitingForOperand(false);
+        } else {
+          setCalcDisplay(calcDisplay === '0' ? value : calcDisplay + value);
+        }
+      };
+
+      const toggleCalculator = () => {
+        const panel = document.getElementById('calculator-panel');
+        if (panel) {
+          panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+      };
+
+      const showToast = (message) => {
+        setToast(message);
+      };
+
+      const exportToPDF = () => {
+        const input = document.getElementById('pdf-content');
+        if (!input) return;
+
+        const btn = document.querySelector('.btn-pdf');
+        const originalText = btn ? btn.innerHTML : 'Export PDF';
+        if (btn) btn.innerHTML = '⏳ Generating...';
+
+        html2canvas(input, {
+          useCORS: true,
+          scale: 2,
+          backgroundColor: null
+        }).then((canvas) => {
+          const imgData = canvas.toDataURL('image/png');
+          const pdf = new jsPDF('p', 'mm', 'a4');
+          const imgWidth = 210;
+          const pageHeight = 295;
+          const imgHeight = (canvas.height * imgWidth) / canvas.width;
+          let heightLeft = imgHeight;
+          let position = 0;
+
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+
+          while (heightLeft >= 0) {
+            position = heightLeft - imgHeight;
+            pdf.addPage();
+            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+            heightLeft -= pageHeight;
+          }
+
+          pdf.save(`wastage-report-${selectedDate}.pdf`);
+
+          if (btn) btn.innerHTML = originalText;
+          showToast('📄 PDF exported');
+        }).catch(err => {
+          alert('PDF generation failed: ' + err.message);
+          if (btn) btn.innerHTML = originalText;
+        });
+      };
+
+      const showAnalyticsModal = () => {
+        setShowAnalytics(true);
+        setTimeout(() => {
+          if (chartRef.current && window.Chart) {
+            if (chartInstance.current) {
+              chartInstance.current.destroy();
+            }
+            const ctx = chartRef.current.getContext('2d');
+            const dates = Object.keys(allData).sort().slice(-7);
+            
+            chartInstance.current = new Chart(ctx, {
+              type: 'line',
+              data: {
+                labels: dates,
+                datasets: [
+                  {
+                    label: 'Total Wastage (kg)',
+                    data: dates.map(d => {
+                      const dayData = allData[d];
+                      const totalDross = Object.values(dayData.dross || {}).reduce((sum, val) => sum + safeParseFloat(val), 0);
+                      const totalCuttingWeight = safeParseFloat(dayData.cuttingWeight);
+                      const totalBurningWeight = safeParseFloat(dayData.burningWeight);
+                      const totalDust = safeParseFloat(dayData.cuttingBrushingDust) + safeParseFloat(dayData.pastingDust) +
+                                       safeParseFloat(dayData.pastingRemaining) + safeParseFloat(dayData.pastingPlateDamage) +
+                                       safeParseFloat(dayData.oxideMillDross);
+                      return totalDross + totalCuttingWeight + totalBurningWeight + totalDust;
+                    }),
+                    borderColor: 'rgba(102, 126, 234, 1)',
+                    backgroundColor: 'rgba(102, 126, 234, 0.1)',
+                    tension: 0.4
+                  }
+                ]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  title: {
+                    display: true,
+                    text: '7-Day Trend Analysis'
+                  }
+                }
+              }
+            });
+          }
+        }, 100);
+      };
+
+      // Helper functions for data entry
+      const updatePbInput = (key, value) => {
+        if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+          setData(prev => ({ ...prev, pbInput: { ...prev.pbInput, [key]: value } }));
+        }
+      };
+      
+      const updateDross = (key, value) => {
+        if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+          setData(prev => ({ ...prev, dross: { ...prev.dross, [key]: value } }));
+        }
+      };
+      
+      const updateAreaData = (section, field, index, value, isNumeric = false) => {
+        if (isNumeric) {
+          if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+            setData(prev => ({
+              ...prev,
+              [section]: {
+                ...prev[section],
+                [field]: prev[section][field].map((v, i) => i === index ? value : v)
+              }
+            }));
+          }
+        } else {
+          setData(prev => ({
+            ...prev,
+            [section]: {
+              ...prev[section],
+              [field]: prev[section][field].map((v, i) => i === index ? value : v)
+            }
+          }));
+        }
+      };
+      
+      const addRow = (section) => {
+        setData(prev => ({
+          ...prev,
+          [section]: {
+            ...prev[section],
+            plateTypes: [...prev[section].plateTypes, ''],
+            GD: [...prev[section].GD, ''],
+            PD: [...prev[section].PD, ''],
+            CD: [...prev[section].CD, ''],
+            BD: [...prev[section].BD, ''],
+            Bud: [...prev[section].Bud, '']
+          }
+        }));
+      };
+      
+      const removeRow = (section, idx) => {
+        if (data[section].plateTypes.length <= 1) {
+          showToast('⚠️ At least one row required');
+          return;
+        }
+        setData(prev => ({
+          ...prev,
+          [section]: {
+            ...prev[section],
+            plateTypes: prev[section].plateTypes.filter((_, i) => i !== idx),
+            GD: prev[section].GD.filter((_, i) => i !== idx),
+            PD: prev[section].PD.filter((_, i) => i !== idx),
+            CD: prev[section].CD.filter((_, i) => i !== idx),
+            BD: prev[section].BD.filter((_, i) => i !== idx),
+            Bud: prev[section].Bud.filter((_, i) => i !== idx)
+          }
+        }));
+      };
+
+      const pbKeys = ['GC-01', 'GC-02', 'GC-03', 'GC-04', 'Burning'];
+
+      // Render components
+      const renderPbTable = () => {
+        return React.createElement('div', { className: 'table-container' },
+          React.createElement('table', null,
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                React.createElement('th', null, ''),
+                ...pbKeys.map(k => React.createElement('th', { key: k }, k))
+              )
+            ),
+            React.createElement('tbody', null,
+              React.createElement('tr', null,
+                React.createElement('td', { style: { fontWeight: '600' } }, 'Pb Input (kg)'),
+                ...pbKeys.map(k => React.createElement('td', { key: k },
+                  React.createElement('input', {
+                    type: 'number',
+                    min: '0',
+                    step: '0.01',
+                    value: data.pbInput[k],
+                    onChange: (e) => updatePbInput(k, e.target.value)
+                  })
+                ))
+              ),
+              React.createElement('tr', null,
+                React.createElement('td', { style: { fontWeight: '600' } }, 'Dross (kg)'),
+                ...pbKeys.map(k => React.createElement('td', { key: k },
+                  React.createElement('input', {
+                    type: 'number',
+                    min: '0',
+                    step: '0.01',
+                    value: data.dross[k],
+                    onChange: (e) => updateDross(k, e.target.value)
+                  })
+                ))
+              ),
+              React.createElement('tr', { style: { backgroundColor: '#f0f9ff' } },
+                React.createElement('td', { style: { fontWeight: '600' } }, 'Dross (%)'),
+                ...pbKeys.map(k => {
+                  const pb = safeParseFloat(data.pbInput[k]);
+                  const dr = safeParseFloat(data.dross[k]);
+                  const p = pb === 0 ? '0.00' : ((dr / pb) * 100).toFixed(2);
+                  return React.createElement('td', { key: k },
+                    React.createElement('input', {
+                      type: 'text',
+                      value: p,
+                      readOnly: true,
+                      style: { background: '#f8fafc', fontWeight: '600', textAlign: 'center' }
+                    })
+                  );
+                })
+              )
+            )
+          )
+        );
+      };
+
+      const renderCuttingBrushingAreaTable = () => {
+        const areaData = data.cuttingArea;
+
+        const rows = areaData.plateTypes.map((_, i) => {
+          const total = (
+            safeParseFloat(areaData.GD[i]) +
+            safeParseFloat(areaData.PD[i]) +
+            safeParseFloat(areaData.CD[i]) +
+            safeParseFloat(areaData.BD[i]) +
+            safeParseFloat(areaData.Bud[i])
+          ).toFixed(2);
+
+          return React.createElement('tr', { key: i },
+            React.createElement('td', null,
+              React.createElement('select', {
+                value: areaData.plateTypes[i],
+                onChange: (e) => updateAreaData('cuttingArea', 'plateTypes', i, e.target.value, false),
+                style: { width: '100%', padding: '8px', fontSize: '14px' }
+              },
+                React.createElement('option', { value: '' }, 'Select'),
+                ...plateTypeOptions.map(opt => React.createElement('option', { key: opt, value: opt }, opt))
+              )
+            ),
+            ...['GD', 'PD', 'CD', 'BD', 'Bud'].map(field =>
+              React.createElement('td', { key: field },
+                React.createElement('input', {
+                  type: 'number',
+                  min: '0',
+                  step: '1',
+                  value: areaData[field][i],
+                  onChange: (e) => updateAreaData('cuttingArea', field, i, e.target.value, true),
+                  style: { width: '100%', padding: '6px', fontSize: '14px' }
+                })
+              )
+            ),
+            React.createElement('td', { style: { backgroundColor: '#f0f9ff' } },
+              React.createElement('input', {
+                type: 'text',
+                value: total,
+                readOnly: true,
+                style: { width: '100%', padding: '6px', background: '#f8fafc', fontWeight: '600', textAlign: 'center' }
+              })
+            ),
+            React.createElement('td', null,
+              React.createElement('button', {
+                className: 'btn-remove',
+                onClick: () => removeRow('cuttingArea', i),
+                children: React.createElement(XIcon)
+              })
+            )
+          );
+        });
+
+        return React.createElement('div', { className: 'section' },
+          React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' } },
+            React.createElement('h2', null, '✂️ Cutting/Brushing Area'),
+            React.createElement('button', {
+              className: 'btn-add',
+              onClick: () => addRow('cuttingArea'),
+              children: [React.createElement(PlusIcon), ' Add Row']
+            })
+          ),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', null,
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  React.createElement('th', null, 'Plate Type'),
+                  React.createElement('th', null, 'GD (Pcs)'),
+                  React.createElement('th', null, 'PD (Pcs)'),
+                  React.createElement('th', null, 'CD (Pcs)'),
+                  React.createElement('th', null, 'BD (Pcs)'),
+                  React.createElement('th', null, 'Bud (Pcs)'),
+                  React.createElement('th', { style: { backgroundColor: '#f0f9ff' } }, 'Total (Pcs)'),
+                  React.createElement('th', null, 'Delete')
+                )
+              ),
+              React.createElement('tbody', null, ...rows)
+            )
+          ),
+          React.createElement('div', { className: 'grid', style: { marginTop: '12px' } },
+            React.createElement('div', null,
+              React.createElement('label', null, 'Total Plate Weight (kg)'),
+              React.createElement('input', {
+                type: 'number',
+                min: '0',
+                step: '0.01',
+                value: data.cuttingWeight,
+                onChange: (e) => {
+                  if (e.target.value === '' || /^-?\d*\.?\d*$/.test(e.target.value)) {
+                    setData(prev => ({ ...prev, cuttingWeight: e.target.value }));
+                  }
+                }
+              })
+            )
+          )
+        );
+      };
+
+      const renderBurningAreaTable = () => {
+        const areaData = data.burningArea;
+        const weight = data.burningWeight;
+
+        const rows = areaData.plateTypes.map((_, i) => {
+          const total = (
+            safeParseFloat(areaData.GD[i]) +
+            safeParseFloat(areaData.PD[i]) +
+            safeParseFloat(areaData.CD[i]) +
+            safeParseFloat(areaData.BD[i]) +
+            safeParseFloat(areaData.Bud[i])
+          ).toFixed(2);
+
+          return React.createElement('tr', { key: i },
+            React.createElement('td', null,
+              React.createElement('select', {
+                value: areaData.plateTypes[i],
+                onChange: (e) => updateAreaData('burningArea', 'plateTypes', i, e.target.value, false),
+                style: { width: '100%', padding: '8px', fontSize: '14px' }
+              },
+                React.createElement('option', { value: '' }, 'Select'),
+                ...plateTypeOptions.map(opt => React.createElement('option', { key: opt, value: opt }, opt))
+              )
+            ),
+            ...['GD', 'PD', 'CD', 'BD', 'Bud'].map(field =>
+              React.createElement('td', { key: field },
+                React.createElement('input', {
+                  type: 'number',
+                  min: '0',
+                  step: '0.01',
+                  value: areaData[field][i],
+                  onChange: (e) => updateAreaData('burningArea', field, i, e.target.value, true),
+                  style: { width: '100%', padding: '6px', fontSize: '14px' }
+                })
+              )
+            ),
+            React.createElement('td', { style: { backgroundColor: '#f0f9ff' } },
+              React.createElement('input', {
+                type: 'text',
+                value: total,
+                readOnly: true,
+                style: { width: '100%', padding: '6px', background: '#f8fafc', fontWeight: '600', textAlign: 'center' }
+              })
+            ),
+            React.createElement('td', null,
+              React.createElement('button', {
+                className: 'btn-remove',
+                onClick: () => removeRow('burningArea', i),
+                children: React.createElement(XIcon)
+              })
+            )
+          );
+        });
+
+        return React.createElement('div', { className: 'section' },
+          React.createElement('div', { style: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' } },
+            React.createElement('h2', null, '🔥 Burning Area'),
+            React.createElement('button', {
+              className: 'btn-add',
+              onClick: () => addRow('burningArea'),
+              children: [React.createElement(PlusIcon), ' Add Row']
+            })
+          ),
+          React.createElement('div', { className: 'table-container' },
+            React.createElement('table', null,
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  React.createElement('th', null, 'Plate Type'),
+                  React.createElement('th', null, 'GD (kg)'),
+                  React.createElement('th', null, 'PD (kg)'),
+                  React.createElement('th', null, 'CD (kg)'),
+                  React.createElement('th', null, 'BD (kg)'),
+                  React.createElement('th', null, 'Bud (kg)'),
+                  React.createElement('th', { style: { backgroundColor: '#f0f9ff' } }, 'Total (kg)'),
+                  React.createElement('th', null, 'Delete')
+                )
+              ),
+              React.createElement('tbody', null, ...rows)
+            )
+          ),
+          React.createElement('div', { style: { marginTop: '12px' } },
+            React.createElement('label', null, 'Total Weight (kg)'),
+            React.createElement('input', {
+              type: 'number',
+              min: '0',
+              step: '0.01',
+              value: weight,
+              onChange: (e) => {
+                if (e.target.value === '' || /^-?\d*\.?\d*$/.test(e.target.value)) {
+                  setData(prev => ({ ...prev, burningWeight: e.target.value }));
+                }
+              }
+            })
+          )
+        );
+      };
+
+      const additionalFields = [
+        { key: 'cuttingBrushingDust', label: 'Cutting/Brushing Dust (kg)' },
+        { key: 'pastingDust', label: 'Pasting Dust (kg)' },
+        { key: 'pastingRemaining', label: 'Pasting Remaining (kg)' },
+        { key: 'pastingPlateDamage', label: 'Pasting Plate Damage (kg)' },
+        { key: 'oxideMillDross', label: 'Oxide Mill Dross (kg)' }
+      ];
+
+      // Render calendar view
+      const renderCalendarView = () => {
+        const days = getDaysInMonth(currentMonth);
+        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+        
+        return React.createElement('div', null,
+          React.createElement('div', { className: 'calendar-header' },
+            React.createElement('h2', null, `${monthNames[currentMonth.getMonth()]} ${currentMonth.getFullYear()}`),
+            React.createElement('div', { className: 'month-nav' },
+              React.createElement('button', { onClick: () => changeMonth(-1) }, '◀ Previous'),
+              React.createElement('button', { onClick: () => changeMonth(1) }, 'Next ▶')
+            )
+          ),
+          React.createElement('div', { style: { display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '8px', margin: '20px 0' } },
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => 
+              React.createElement('div', { key: day, style: { fontWeight: 'bold', textAlign: 'center', padding: '8px', background: '#e2e8f0', borderRadius: '6px' } }, day)
+            ),
+            days.map((day, idx) => {
+              const dateStr = toLocalDateStr(day.date);
+              const hasData = datesWithData.has(dateStr);
+              const isSelected = dateStr === selectedDate;
+              const isCurrentMonth = day.isCurrentMonth;
+              
+              return React.createElement('div', {
+                key: idx,
+                className: `calendar-day ${hasData ? 'has-data' : ''} ${isSelected ? 'selected' : ''}`,
+                onClick: () => selectDateFromCalendar(day.date),
+                style: !isCurrentMonth ? { opacity: 0.35, pointerEvents: 'none' } : {}
+              },
+                React.createElement('div', { className: 'day-number' }, day.date.getDate()),
+                React.createElement('div', { className: 'day-date' }, dateStr)
+              );
+            })
+          ),
+          React.createElement('div', { style: { marginTop: '20px', padding: '12px', background: '#f0f9ff', borderRadius: '8px' } },
+            React.createElement('div', { style: { display: 'flex', gap: '20px', justifyContent: 'center', flexWrap: 'wrap' } },
+              React.createElement('div', null, '✓ Green: Has Data'),
+              React.createElement('div', null, '🔵 Blue: Selected Date'),
+              React.createElement('div', null, 'Click any date to view/edit data')
+            )
+          )
+        );
+      };
+
+      // Analytics Modal
+      const AnalyticsModal = () => {
+        if (!showAnalytics) return null;
+        
+        return React.createElement('div', { className: 'modal', style: { display: 'block' } },
+          React.createElement('div', { className: 'modal-content' },
+            React.createElement('div', { className: 'modal-header' },
+              React.createElement('h2', null, '📈 Trend Analysis - Last 7 Days'),
+              React.createElement('span', { className: 'close', onClick: () => setShowAnalytics(false) }, '×')
+            ),
+            React.createElement('canvas', { ref: chartRef }),
+            React.createElement('div', { style: { marginTop: '20px', textAlign: 'center' } },
+              React.createElement('button', {
+                className: 'btn btn-save',
+                onClick: () => setShowAnalytics(false)
+              }, 'Close')
+            )
+          )
+        );
+      };
+
+      // ── Summary Report ──────────────────────────────────────────────
+      const renderSummaryReport = () => {
+        const dates = Object.keys(allData).sort();
+        const noData = dates.length === 0;
+
+        // ── Aggregate PB Input & Dross ──────────────────────────────
+        const sumPb = {};
+        const sumDross = {};
+        pbKeys.forEach(k => { sumPb[k] = 0; sumDross[k] = 0; });
+        dates.forEach(d => {
+          const day = allData[d];
+          pbKeys.forEach(k => {
+            sumPb[k] += safeParseFloat(day.pbInput?.[k]);
+            sumDross[k] += safeParseFloat(day.dross?.[k]);
+          });
+        });
+
+        // ── Aggregate Cutting/Brushing Area by Plate Type ───────────
+        const cuttingByPlate = {};
+        dates.forEach(d => {
+          const ca = allData[d]?.cuttingArea;
+          if (!ca) return;
+          ca.plateTypes.forEach((pt, i) => {
+            if (!pt) return;
+            if (!cuttingByPlate[pt]) cuttingByPlate[pt] = { GD: 0, PD: 0, CD: 0, BD: 0, Bud: 0 };
+            ['GD','PD','CD','BD','Bud'].forEach(f => {
+              cuttingByPlate[pt][f] += safeParseFloat(ca[f]?.[i]);
+            });
+          });
+        });
+        const cuttingPlates = Object.keys(cuttingByPlate);
+
+        // ── Aggregate Burning Area by Plate Type ────────────────────
+        const burningByPlate = {};
+        dates.forEach(d => {
+          const ba = allData[d]?.burningArea;
+          if (!ba) return;
+          ba.plateTypes.forEach((pt, i) => {
+            if (!pt) return;
+            if (!burningByPlate[pt]) burningByPlate[pt] = { GD: 0, PD: 0, CD: 0, BD: 0, Bud: 0 };
+            ['GD','PD','CD','BD','Bud'].forEach(f => {
+              burningByPlate[pt][f] += safeParseFloat(ba[f]?.[i]);
+            });
+          });
+        });
+        const burningPlates = Object.keys(burningByPlate);
+
+        // ── Aggregate additional fields ──────────────────────────────
+        let sumCuttingWeight = 0, sumBurningWeight = 0;
+        const sumExtra = { cuttingBrushingDust: 0, pastingDust: 0, pastingRemaining: 0, pastingPlateDamage: 0, oxideMillDross: 0 };
+        dates.forEach(d => {
+          const day = allData[d];
+          sumCuttingWeight += safeParseFloat(day.cuttingWeight);
+          sumBurningWeight += safeParseFloat(day.burningWeight);
+          Object.keys(sumExtra).forEach(k => { sumExtra[k] += safeParseFloat(day[k]); });
+        });
+
+        // ── Styles ───────────────────────────────────────────────────
+        const roStyle = { background: '#f8fafc', fontWeight: '600', textAlign: 'center', width: '100%', padding: '6px', border: '1px solid #e2e8f0', borderRadius: '6px' };
+        const totalCellStyle = { backgroundColor: '#f0f9ff' };
+        const totRowStyle = { backgroundColor: '#fef9c3' };
+
+        // Helper: read-only input
+        const ro = (val) => React.createElement('input', { type: 'text', readOnly: true, value: val, style: roStyle });
+
+        // ── PB Table ─────────────────────────────────────────────────
+        const pbTableEl = React.createElement('div', { className: 'table-container' },
+          React.createElement('table', null,
+            React.createElement('thead', null,
+              React.createElement('tr', null,
+                React.createElement('th', null, ''),
+                ...pbKeys.map(k => React.createElement('th', { key: k }, k)),
+                React.createElement('th', { style: totalCellStyle }, 'Total')
+              )
+            ),
+            React.createElement('tbody', null,
+              // Pb Input row
+              React.createElement('tr', null,
+                React.createElement('td', { style: { fontWeight: '600' } }, 'Pb Input (kg)'),
+                ...pbKeys.map(k => React.createElement('td', { key: k }, ro(sumPb[k].toFixed(2)))),
+                React.createElement('td', { style: totalCellStyle }, ro(pbKeys.reduce((s,k) => s + sumPb[k], 0).toFixed(2)))
+              ),
+              // Dross row
+              React.createElement('tr', null,
+                React.createElement('td', { style: { fontWeight: '600' } }, 'Dross (kg)'),
+                ...pbKeys.map(k => React.createElement('td', { key: k }, ro(sumDross[k].toFixed(2)))),
+                React.createElement('td', { style: totalCellStyle }, ro(pbKeys.reduce((s,k) => s + sumDross[k], 0).toFixed(2)))
+              ),
+              // Dross % row
+              React.createElement('tr', { style: { backgroundColor: '#f0f9ff' } },
+                React.createElement('td', { style: { fontWeight: '600' } }, 'Dross (%)'),
+                ...pbKeys.map(k => {
+                  const pct = sumPb[k] === 0 ? '0.00' : ((sumDross[k] / sumPb[k]) * 100).toFixed(2);
+                  return React.createElement('td', { key: k }, ro(pct));
+                }),
+                React.createElement('td', { style: totalCellStyle }, (() => {
+                  const tp = pbKeys.reduce((s,k) => s + sumPb[k], 0);
+                  const td2 = pbKeys.reduce((s,k) => s + sumDross[k], 0);
+                  return ro(tp === 0 ? '0.00' : ((td2/tp)*100).toFixed(2));
+                })())
+              )
+            )
+          )
+        );
+
+        // ── Area table builder (reused for cutting & burning) ────────
+        const buildAreaTable = (plateMap, weightSum, weightLabel, unit) => {
+          const plates = Object.keys(plateMap);
+          const fields = ['GD','PD','CD','BD','Bud'];
+          const colTotals = {};
+          fields.forEach(f => { colTotals[f] = plates.reduce((s, pt) => s + plateMap[pt][f], 0); });
+          const colTotalSum = fields.reduce((s,f) => s + colTotals[f], 0);
+
+          const rows = plates.map(pt => {
+            const row = plateMap[pt];
+            const rowTotal = fields.reduce((s,f) => s + row[f], 0);
+            return React.createElement('tr', { key: pt },
+              React.createElement('td', { style: { fontWeight: '600' } }, pt),
+              ...fields.map(f => React.createElement('td', { key: f }, ro(row[f].toFixed(2)))),
+              React.createElement('td', { style: totalCellStyle }, ro(rowTotal.toFixed(2)))
+            );
+          });
+
+          // Column totals row
+          rows.push(
+            React.createElement('tr', { key: '__total__', style: totRowStyle },
+              React.createElement('td', { style: { fontWeight: '700' } }, '📊 Total'),
+              ...fields.map(f => React.createElement('td', { key: f }, ro(colTotals[f].toFixed(2)))),
+              React.createElement('td', { style: totalCellStyle }, ro(colTotalSum.toFixed(2)))
+            )
+          );
+
+          return React.createElement('div', { className: 'table-container' },
+            React.createElement('table', null,
+              React.createElement('thead', null,
+                React.createElement('tr', null,
+                  React.createElement('th', null, 'Plate Type'),
+                  React.createElement('th', null, `GD (${unit})`),
+                  React.createElement('th', null, `PD (${unit})`),
+                  React.createElement('th', null, `CD (${unit})`),
+                  React.createElement('th', null, `BD (${unit})`),
+                  React.createElement('th', null, `Bud (${unit})`),
+                  React.createElement('th', { style: totalCellStyle }, `Total (${unit})`)
+                )
+              ),
+              React.createElement('tbody', null, ...rows)
+            ),
+            React.createElement('div', { style: { marginTop: '12px', maxWidth: '240px' } },
+              React.createElement('label', null, weightLabel),
+              ro(weightSum.toFixed(2) + ' kg')
+            )
+          );
+        };
+
+        // ── Main render ──────────────────────────────────────────────
+        return React.createElement('div', null,
+          // Date range header card
+          React.createElement('div', { className: 'stats-grid', style: { marginBottom: '20px' } },
+            React.createElement('div', { className: 'stat-card', style: { background: 'linear-gradient(135deg, #0891b2 0%, #0e7490 100%)' } },
+              React.createElement('h3', null, 'Total Days with Data'),
+              React.createElement('div', { className: 'value' }, dates.length)
+            ),
+            React.createElement('div', { className: 'stat-card', style: { background: 'linear-gradient(135deg, #16a34a 0%, #15803d 100%)' } },
+              React.createElement('h3', null, 'Date Range'),
+              React.createElement('div', { className: 'value', style: { fontSize: dates.length ? '16px' : '28px' } },
+                dates.length ? `${dates[0]}  →  ${dates[dates.length - 1]}` : '—'
+              )
+            ),
+            React.createElement('div', { className: 'stat-card', style: { background: 'linear-gradient(135deg, #dc2626 0%, #b91c1c 100%)' } },
+              React.createElement('h3', null, 'Total Wastage (kg)'),
+              React.createElement('div', { className: 'value' }, (() => {
+                const totalDross = pbKeys.reduce((s,k) => s + sumDross[k], 0);
+                const totalExtra = Object.values(sumExtra).reduce((s,v) => s+v, 0);
+                return (totalDross + sumCuttingWeight + sumBurningWeight + totalExtra).toFixed(2);
+              })())
+            )
+          ),
+
+          noData
+            ? React.createElement('div', { style: { textAlign: 'center', padding: '40px', color: '#94a3b8', fontSize: '18px' } },
+                '📭 No saved data yet. Enter data in the Data Entry tab first.')
+            : React.createElement('div', null,
+
+                // PB Table
+                React.createElement('div', { className: 'section' },
+                  React.createElement('h2', null, '🔋 Pb Input & Dross — Cumulative'),
+                  pbTableEl
+                ),
+
+                // Cutting Area
+                React.createElement('div', { className: 'section' },
+                  React.createElement('h2', null, '✂️ Cutting/Brushing Area — Cumulative'),
+                  cuttingPlates.length === 0
+                    ? React.createElement('p', { style: { color: '#94a3b8' } }, 'No cutting data saved.')
+                    : buildAreaTable(cuttingByPlate, sumCuttingWeight, 'Total Plate Weight (kg)', 'Pcs')
+                ),
+
+                // Burning Area
+                React.createElement('div', { className: 'section' },
+                  React.createElement('h2', null, '🔥 Burning Area — Cumulative'),
+                  burningPlates.length === 0
+                    ? React.createElement('p', { style: { color: '#94a3b8' } }, 'No burning data saved.')
+                    : buildAreaTable(burningByPlate, sumBurningWeight, 'Total Weight (kg)', 'kg')
+                ),
+
+                // Additional fields
+                React.createElement('div', { className: 'section' },
+                  React.createElement('h2', null, '🧹 Additional Wastage — Cumulative'),
+                  React.createElement('div', { className: 'grid' },
+                    ...additionalFields.map(f =>
+                      React.createElement('div', { key: f.key },
+                        React.createElement('label', null, f.label),
+                        ro(sumExtra[f.key].toFixed(2) + ' kg')
+                      )
+                    )
+                  )
+                )
+              )
+        );
+      };
+      // ── End Summary Report ───────────────────────────────────────────
+
+      // ── Login Screen ─────────────────────────────────────────────
+      if (!authReady) return React.createElement('div', { style: { display:'flex', alignItems:'center', justifyContent:'center', height:'100vh', fontSize:'20px', color:'#64748b' } }, '⏳ Loading...');
+
+      if (!user) return React.createElement('div', { style: { display:'flex', alignItems:'center', justifyContent:'center', minHeight:'100vh' } },
+        React.createElement('div', { style: { background:'white', borderRadius:'16px', boxShadow:'0 8px 32px rgba(0,0,0,0.12)', padding:'40px', width:'100%', maxWidth:'400px' } },
+          React.createElement('div', { style: { textAlign:'center', marginBottom:'24px' } },
+            React.createElement('div', { style: { fontSize:'48px' } }, '🏭'),
+            React.createElement('h1', { style: { fontSize:'22px', color:'#0f172a', marginTop:'8px', marginBottom:'4px' } }, 'Daily Wastage Tracker'),
+            React.createElement('p', { style: { color:'#64748b', fontSize:'14px' } }, 'Sign in to access your data')
+          ),
+          React.createElement('div', { style: { marginBottom:'16px' } },
+            React.createElement('label', { style: { display:'block', fontWeight:'600', marginBottom:'6px', fontSize:'14px' } }, 'Email'),
+            React.createElement('input', { type:'email', value:loginEmail, onChange:e=>setLoginEmail(e.target.value), placeholder:'you@example.com', style:{ width:'100%', padding:'12px', border:'1px solid #cbd5e1', borderRadius:'8px', fontSize:'15px' },
+              onKeyDown: e => e.key === 'Enter' && handleLogin() })
+          ),
+          React.createElement('div', { style: { marginBottom:'20px' } },
+            React.createElement('label', { style: { display:'block', fontWeight:'600', marginBottom:'6px', fontSize:'14px' } }, 'Password'),
+            React.createElement('input', { type:'password', value:loginPassword, onChange:e=>setLoginPassword(e.target.value), placeholder:'••••••••', style:{ width:'100%', padding:'12px', border:'1px solid #cbd5e1', borderRadius:'8px', fontSize:'15px' },
+              onKeyDown: e => e.key === 'Enter' && handleLogin() })
+          ),
+          loginError && React.createElement('div', { style: { background:'#fef2f2', border:'1px solid #fca5a5', borderRadius:'8px', padding:'10px 14px', marginBottom:'16px', color:'#dc2626', fontSize:'14px' } }, loginError),
+          React.createElement('button', {
+            onClick: handleLogin,
+            disabled: loginLoading,
+            style: { width:'100%', padding:'13px', background: loginLoading ? '#94a3b8' : 'linear-gradient(135deg,#667eea,#764ba2)', color:'white', border:'none', borderRadius:'8px', fontSize:'16px', fontWeight:'600', cursor: loginLoading ? 'not-allowed' : 'pointer' }
+          }, loginLoading ? '⏳ Signing in...' : '🔐 Sign In')
+        )
+      );
+      // ── End Login Screen ─────────────────────────────────────────
+
+      return React.createElement('div', { className: 'container' },
+        dbLoading && React.createElement('div', { style:{ position:'fixed', inset:0, background:'rgba(255,255,255,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:9999, fontSize:'20px', color:'#64748b' } }, '☁️ Loading from cloud...'),
+        React.createElement('div', { className: 'card', id: 'pdf-content' },
+          React.createElement('div', { style:{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'10px', marginBottom:'16px' } },
+            React.createElement('h1', { style:{ margin:0 } }, '🏭 Daily Wastage Tracker System'),
+            React.createElement('div', { style:{ display:'flex', alignItems:'center', gap:'10px', flexShrink:0 } },
+              React.createElement('span', { style:{ fontSize:'13px', color:'#64748b', fontWeight:'500' } }, '👤 ' + (user.email || '')),
+              React.createElement('button', { onClick: handleLogout, style:{ background:'#ef4444', color:'white', border:'none', borderRadius:'8px', padding:'8px 14px', cursor:'pointer', fontWeight:'600', fontSize:'13px' } }, '🚪 Logout')
+            )
+          ),
+          
+          React.createElement('div', { className: 'tabs' },
+            React.createElement('button', {
+              className: `tab ${activeTab === 'entry' ? 'active' : ''}`,
+              onClick: () => setActiveTab('entry')
+            }, '📝 Data Entry'),
+            React.createElement('button', {
+              className: `tab ${activeTab === 'summary' ? 'active' : ''}`,
+              onClick: () => setActiveTab('summary')
+            }, '📊 Summary Report'),
+            React.createElement('button', {
+              className: `tab ${activeTab === 'calendar' ? 'active' : ''}`,
+              onClick: () => setActiveTab('calendar')
+            }, '📅 Calendar View')
+          ),
+          
+          React.createElement('div', { className: `tab-content ${activeTab === 'entry' ? 'active' : ''}` },
+            React.createElement('div', { className: 'stats-grid' },
+              React.createElement('div', { className: 'stat-card', style: { background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' } },
+                React.createElement('h3', null, 'Select Date'),
+                React.createElement('input', {
+                  type: 'date',
+                  value: selectedDate,
+                  onChange: (e) => {
+                    if (e.target.value) setSelectedDate(e.target.value);
+                  },
+                  style: {
+                    background: 'rgba(255,255,255,0.2)',
+                    border: '1px solid rgba(255,255,255,0.5)',
+                    borderRadius: '8px',
+                    color: 'white',
+                    fontSize: '18px',
+                    fontWeight: 'bold',
+                    padding: '6px 10px',
+                    width: '100%',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    colorScheme: 'dark'
+                  }
+                })
+              )
+            ),
+            
+            React.createElement('div', { className: 'header-actions' },
+              React.createElement('button', {
+                className: 'btn',
+                style: { background: '#f59e0b', color: 'white' },
+                onClick: toggleCalculator
+              }, '🧮 Calculator'),
+              React.createElement('button', { className: 'btn btn-save', onClick: saveData }, React.createElement(SaveIcon), ' Save'),
+              React.createElement('button', { className: 'btn btn-pdf', onClick: exportToPDF }, React.createElement(FileTextIcon), ' PDF'),
+              React.createElement('button', { className: 'btn btn-analytics', onClick: showAnalyticsModal }, React.createElement(BarChartIcon), ' Trends'),
+              React.createElement('button', { className: 'btn btn-clear', onClick: clearData }, React.createElement(TrashIcon), ' Clear')
+            ),
+            
+            React.createElement('div', { id: 'calculator-panel' },
+              React.createElement('div', { className: 'calc-display' }, calcDisplay),
+              React.createElement('div', { className: 'calc-buttons' },
+                ['7','8','9','/'].map(b => React.createElement('button', {
+                  key: b,
+                  className: 'calc-btn',
+                  onClick: () => handleCalcButtonPress(b)
+                }, b)),
+                ['4','5','6','*'].map(b => React.createElement('button', {
+                  key: b,
+                  className: 'calc-btn',
+                  onClick: () => handleCalcButtonPress(b)
+                }, b)),
+                ['1','2','3','-'].map(b => React.createElement('button', {
+                  key: b,
+                  className: 'calc-btn',
+                  onClick: () => handleCalcButtonPress(b)
+                }, b)),
+                ['0','.','=','+'].map(b => React.createElement('button', {
+                  key: b,
+                  className: b === '=' ? 'calc-btn equals' : 'calc-btn',
+                  onClick: () => handleCalcButtonPress(b)
+                }, b)),
+                React.createElement('button', {
+                  className: 'calc-btn clear',
+                  onClick: () => handleCalcButtonPress('C')
+                }, 'C')
+              )
+            ),
+            
+            renderPbTable(),
+            renderCuttingBrushingAreaTable(),
+            renderBurningAreaTable(),
+            
+            React.createElement('div', { className: 'grid' },
+              ...additionalFields.map(f =>
+                React.createElement('div', { key: f.key },
+                  React.createElement('label', null, f.label),
+                  React.createElement('input', {
+                    type: 'number',
+                    min: '0',
+                    step: '0.01',
+                    value: data[f.key],
+                    onChange: (e) => {
+                      if (e.target.value === '' || /^-?\d*\.?\d*$/.test(e.target.value)) {
+                        setData(prev => ({ ...prev, [f.key]: e.target.value }));
+                      }
+                    }
+                  })
+                )
+              )
+            )
+          ),
+          
+          React.createElement('div', { className: `tab-content ${activeTab === 'summary' ? 'active' : ''}` },
+            renderSummaryReport()
+          ),
+          
+          React.createElement('div', { className: `tab-content ${activeTab === 'calendar' ? 'active' : ''}` },
+            renderCalendarView()
+          )
+        ),
+        React.createElement(AnalyticsModal),
+        toast && React.createElement(Toast, { message: toast, onClose: () => setToast(null) })
+      );
+    };
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(React.createElement(DailyWastageTracker));
+  </script>
+</body>
+</html>
